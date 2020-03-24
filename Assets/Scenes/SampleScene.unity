@@ -1013,6 +1013,12 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 4fbbd504e07b8ab4bac903d224d32354, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  _serverAdress: 127.0.0.1
+  _serverPort: 27000
+  _bufferSize: 1024
+  _threadPoolSize: 3
+  _userName: JBrito
+  _teamNumber: 1
 --- !u!4 &1623888357
 Transform:
   m_ObjectHideFlags: 0
