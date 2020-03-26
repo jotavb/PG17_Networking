@@ -1,3 +1,6 @@
+/*
+    Copyright (C) Team Tripple Double, Vitor Brito 2020
+*/
 namespace LLNet
 {
     public class NetUser

@@ -1,9 +1,12 @@
-﻿using GameSavvy.Byterizer;
-using System.Collections;
+﻿/*
+    Copyright (C) Team Tripple Double, Vitor Brito 2020
+*/
 using System.Collections.Generic;
-using System.Linq;
-using UnityEngine;
 using UnityEngine.Networking;
+using GameSavvy.Byterizer;
+using System.Collections;
+using UnityEngine;
+using System;
 
 namespace LLNet
 {
@@ -13,11 +16,12 @@ namespace LLNet
         [SerializeField] private int _serverPort = 27000;
         [SerializeField] private int _bufferSize = 1024;
         [SerializeField] private byte _threadPoolSize = 3;
+        [SerializeField] private NetMessageContainer _netMessages;
 
-        private byte _reliableChannel;
-        private byte _unreliableChannel;
         private int _socketId;
-        private Dictionary<int, NetUser> _NetUsers;
+        [HideInInspector] public byte ReliableChannel { get; private set; }
+        [HideInInspector] public byte UnreliableChannel { get; private set; }
+        [HideInInspector] public Dictionary<int, NetUser> NetUsers { get; private set; }
 
         private void Start()
         {
@@ -26,7 +30,7 @@ namespace LLNet
 
         private void StartServer()
         {
-             _NetUsers = new Dictionary<int, NetUser>();
+             NetUsers = new Dictionary<int, NetUser>();
 
             GlobalConfig globalconfig = new GlobalConfig()
             {
@@ -40,8 +44,8 @@ namespace LLNet
                 MinUpdateTimeout = 1
             };
 
-            _reliableChannel = connectionConfig.AddChannel(QosType.Reliable);
-            _unreliableChannel = connectionConfig.AddChannel(QosType.Unreliable);
+            ReliableChannel = connectionConfig.AddChannel(QosType.Reliable);
+            UnreliableChannel = connectionConfig.AddChannel(QosType.Unreliable);
 
             HostTopology hostTopology = new HostTopology(connectionConfig, 16);
             _socketId = NetworkTransport.AddHost(hostTopology, _serverPort);
@@ -49,7 +53,6 @@ namespace LLNet
             StartCoroutine(Receiver());
             Debug.Log($"StartServer -> {_socketId}");
         }
-
 
         private IEnumerator Receiver()
         {
@@ -114,25 +117,25 @@ namespace LLNet
 
         private void OnDisconnected(int socketId, int connectionId)
         {
-            if(_NetUsers.ContainsKey(connectionId) == false) 
+            if(NetUsers.ContainsKey(connectionId) == false) 
             {
                 Debug.LogError($"@OnDisconnected -> Try to remove userId[{connectionId}] but it doesn't exist");
                 return;
             }
-            _NetUsers.Remove(connectionId);
+            NetUsers.Remove(connectionId);
             ByteStream stream = new ByteStream();
             stream.Encode
             (
                 (byte)NetMessageType.USER_DISCONNECT,
                 connectionId
             );
-            BroadcastNetMessage(_reliableChannel, stream.ToArray(), connectionId);
+            BroadcastNetMessage(ReliableChannel, stream.ToArray(), connectionId);
             Debug.Log($"receiver.Disconnect -> Socket[{socketId}], userId[{connectionId}]");
         }
 
         private void OnConnectedToServer(int connectionId)
         {
-            if(_NetUsers.ContainsKey(connectionId))
+            if(NetUsers.ContainsKey(connectionId))
             {
                 Debug.Log($"@OnConnectedToServer -> userId [{connectionId}] has Re-Connected");
             }
@@ -142,100 +145,32 @@ namespace LLNet
                 {
                     ConnectionID = connectionId
                 };
-                _NetUsers[connectionId] = newUser;
+                NetUsers[connectionId] = newUser;
                 Debug.Log($"@OnConnectedToServer -> UserId[{connectionId}]");
             }
             ByteStream bytestream = new ByteStream();
             bytestream.Append((byte)NetMessageType.CONNECTION_ACK);
             bytestream.Append(connectionId);
-            SendNetMessage(connectionId, _reliableChannel, bytestream.ToArray());
+            SendNetMessage(connectionId, ReliableChannel, bytestream.ToArray());
         }
 
         private void OnDataReceived(int connectionId, int channel, byte[] data, int dataSize)
         {
-            ByteStream byteStream = new ByteStream(data, dataSize);
-            NetMessageType msgType = (NetMessageType)byteStream.PopByte();
-            switch(msgType)
+            try
             {
-                case NetMessageType.USER_INFO:
-                {
-                    OnUserInfo(connectionId, byteStream);
-                    break;
-                }
-                case NetMessageType.CHAT_WHISPER:
-                {
-                    OnChatWhisper(connectionId, byteStream);
-                    break;
-                }
-                case NetMessageType.CHAT_BROADCAST:
-                {
-                    OnChatBroadcast(connectionId, byteStream);
-                    break;
-                }
-                case NetMessageType.CHAT_TEAM_MESSAGE:
-                {
-                    OnChatMulticast(connectionId, byteStream);
-                    break;
-                }
-                default:
-                break;
+                ByteStream stream = new ByteStream(data, dataSize);
+                NetMessageType msgType = (NetMessageType)stream.PopByte();
+                _netMessages.NetMessagesMap[msgType].Server_ReceiveMessage(connectionId, stream, this);
+            }
+            catch(Exception e)
+            {
+                Debug.LogError($"@Server -> @OnDataReceived: [{e.Message}]");
             }
         }
 
-        private void OnUserInfo(int connectionId, ByteStream stream)
+        public void BroadcastNetMessage(byte channel, byte[] data, int? excludeId = null)
         {
-            // Update Current user Data
-            var meUser = _NetUsers[connectionId];
-            meUser.UserName = stream.PopString();
-            meUser.TeamNumber = stream.PopInt32();
-
-            ByteStream msg = new ByteStream();
-            msg.Encode
-            (
-                (byte)NetMessageType.USER_INFO,
-                connectionId,
-                meUser.UserName,
-                meUser.TeamNumber
-            );
-
-            // Broadcast this user info to other users
-            BroadcastNetMessage(_reliableChannel, msg.ToArray(), connectionId);
-            
-            // Send currently connect users data to this user
-            foreach(var user in _NetUsers)
-            {
-                if(user.Key == connectionId) continue;
-                msg = new ByteStream();
-                msg.Encode
-                (
-                    (byte)NetMessageType.USER_INFO,
-                    user.Key,
-                    user.Value.UserName,
-                    user.Value.TeamNumber
-
-                );
-                SendNetMessage(connectionId, _reliableChannel, msg.ToArray());
-            }
-
-            Debug.Log($"@Server -> User[ {connectionId} , {meUser.UserName} , {meUser.TeamNumber} ] Registered");
-        }
-
-        private void OnChatWhisper(int connectionId, ByteStream stream)
-        {            
-            int targetId = stream.PopInt32();
-            stream.Append(connectionId);
-            SendNetMessage(targetId, _reliableChannel, stream.ToArray());
-        }
-
-        private void OnChatBroadcast(int connectionId, ByteStream stream)
-        {
-            stream.Append(connectionId);
-            BroadcastNetMessage(_reliableChannel, stream.ToArray(), connectionId);
-        }
-
-        private void BroadcastNetMessage(byte channel, byte[] data, int? excludeId = null)
-        {
-            foreach(var user in _NetUsers)
+            foreach(var user in NetUsers)
             {
                 if(excludeId != null && user.Key == excludeId) continue;
                 NetworkTransport.Send
@@ -255,19 +190,9 @@ namespace LLNet
             }
         }
 
-        private void OnChatMulticast(int connectionId, ByteStream stream)
+        public void MulticastNetMessage(int[] targets, byte channel, byte[] data, int? excludeId = null)
         {
-            stream.Append(connectionId);
-            int[] targets = _NetUsers.Where(x => x.Value.TeamNumber == _NetUsers[connectionId].TeamNumber)
-                                     .Select(x => x.Key)
-                                     .ToArray();
-
-            MulticastNetMessage(targets, _reliableChannel, stream.ToArray(), connectionId);
-        }
-
-        private void MulticastNetMessage(int[] targets, byte channel, byte[] data, int? excludeId = null)
-        {
-            foreach(var user in _NetUsers)
+            foreach(var user in NetUsers)
             {
                 if(excludeId != null && user.Key == excludeId) continue;
                 //if(Array.Exists(targets, element => element != user.Key)) continue;
@@ -306,15 +231,15 @@ namespace LLNet
             }
         }
 
-        // ----------- GUI DEBUG STUFF ----------
-
+        #region GUI
+            
         private void OnGUI()
         {
             GUILayout.Space(32);
             GUILayout.Label("Online Users:");
             GUILayout.Space(32);
 
-            foreach(var user in _NetUsers)
+            foreach(var user in NetUsers)
             {
                 if(GUILayout.Button($"{user.Key} - {user.Value.UserName}"))
                 {
@@ -323,5 +248,7 @@ namespace LLNet
                 }
             }
         }
+
+        #endregion
     }
 }

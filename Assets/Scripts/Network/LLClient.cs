@@ -1,8 +1,12 @@
-﻿using GameSavvy.Byterizer;
-using UnityEngine.Networking;
-using UnityEngine;
-using System.Collections;
+﻿/*
+    Copyright (C) Team Tripple Double, Vitor Brito 2020
+*/
 using System.Collections.Generic;
+using UnityEngine.Networking;
+using GameSavvy.Byterizer;
+using System.Collections;
+using UnityEngine;
+using System;
 
 namespace LLNet
 {
@@ -13,13 +17,12 @@ namespace LLNet
         [SerializeField] private int _serverPort = 27000;
         [SerializeField] private int _bufferSize = 1024;
         [SerializeField] private byte _threadPoolSize = 3;
+        [SerializeField] private NetMessageContainer _netMessages;
         [Header("User Data")]
         [SerializeField] private string _userName = "JBrito";
         public string UserName => _userName;
         [SerializeField] private int _teamNumber = 1;
         public int TeamNumber => _teamNumber;
-
-        [SerializeField] private NetMessageContainer _netMessages;
 
         private int _socketId = 0;
         private int _serverConnectionId = 0;
@@ -31,7 +34,7 @@ namespace LLNet
 
         private void Start()
         {
-            _userName += Random.Range(1, 1000);
+            _userName += UnityEngine.Random.Range(1, 1000);
             ConnectToServer();
         }
 
@@ -63,15 +66,14 @@ namespace LLNet
 
             if(error != 0)
             {
-                Debug.LogError($"Error: Connecting to server -> [{error}]");
+                Debug.LogError($"@Client -> @ConnectToServer : [{error}]");
             }
             else
             {
                 StartCoroutine(Receiver());
-                Debug.Log($"Connect to Server -> {_socketId}");
+                Debug.Log($"@Client -> @ConnectToServer : [{_socketId}]");
             }
         }
-
 
         private IEnumerator Receiver()
         {
@@ -94,7 +96,7 @@ namespace LLNet
 
                 if(error != 0)
                 {
-                    Debug.Log($"Error ID -> {error}");
+                    Debug.LogError($"@Client -> @Receiver : Error ID [{error}]");
                 }
                 else
                 {
@@ -112,25 +114,20 @@ namespace LLNet
                         }
                         case NetworkEventType.ConnectEvent:
                         {
-                            Debug.Log($"receiver.Connect -> Socket[{recSocketId}], userId[{recConnectionId}]");
+                            Debug.Log($"@Client -> Receiver.Connect : Socket[{recSocketId}], userId[{recConnectionId}]");
                             break;
                         }
                         case NetworkEventType.DisconnectEvent:
                         {
+                            Debug.Log($"@Client -> Receiver.Disconnect : Socket[{recSocketId}], userId[{recConnectionId}]");
                             Application.Quit();
-                            Debug.Log($"receiver.Disconnect -> Socket[{recSocketId}], userId[{recConnectionId}]");
                             break;
                         }
                         default:
                         {
-                            Debug.LogError($"Receiver -> Unrecognized Message Type [{netEventType.ToString()}]");
+                            Debug.LogError($"@Client -> @Receiver : Unrecognized Message Type [{netEventType.ToString()}]");
                             break;
                         }
-                    }
-                    
-                    if(error != 0)
-                    {
-                        Debug.Log($"Error ID -> {error}");
                     }
                 }
             }
@@ -138,46 +135,16 @@ namespace LLNet
 
         private void OnDataReceived(int recChannelId, byte[] data, int dataSize)
         {
-            ByteStream stream = new ByteStream(data, dataSize);
-            NetMessageType msgType = (NetMessageType)stream.PopByte();
-            _netMessages.NetMessageMap[msgType].Client_ReceiveMessage(stream, this);
-        }
-
-        private void OnUserInfo(ByteStream stream)
-        {
-            int conId = stream.PopInt32();
-            string userName = stream.PopString();
-            int teamNum = stream.PopInt32();
-
-            var newUser = new NetUser()
+            try
             {
-                ConnectionID = conId,
-                UserName = userName,
-                TeamNumber = teamNum
-            };
-            NetUsers[conId] = newUser;
-        }
-
-        private void OnChatWhisper(ByteStream stream)
-        {
-            stream.PopInt32();
-            string msg = stream.PopString();
-            int sender = stream.PopInt32();
-            AddMessageToQueue($"<<<<<< [{NetUsers[sender].UserName}] {msg}");
-        }
-
-        private void OnChatBroadcast(ByteStream stream)
-        {
-            string msg = stream.PopString();
-            int sender = stream.PopInt32();
-            AddMessageToQueue($"<<< ALL [{NetUsers[sender].UserName}] {msg}");
-        }
-
-        private void OnChatMulticast(ByteStream stream)
-        {
-            string msg = stream.PopString();
-            int sender = stream.PopInt32();
-            AddMessageToQueue($"<<< TEAM [{NetUsers[sender].UserName}] {msg}");
+                ByteStream stream = new ByteStream(data, dataSize);
+                NetMessageType msgType = (NetMessageType)stream.PopByte();
+                _netMessages.NetMessagesMap[msgType].Client_ReceiveMessage(stream, this);
+            }
+            catch(Exception e)
+            {
+                Debug.LogError($"@Client -> @OnDataReceived: [{e.Message}]");
+            }
         }
 
         public void SendNetMessage(byte channel, byte[] data)
@@ -198,22 +165,11 @@ namespace LLNet
             }
         }
 
-        private void OnDisconnectionAck(ByteStream stream)
-        {
-            int conId = stream.PopInt32();
-            if(NetUsers.ContainsKey(conId) == false)
-            {
-                Debug.LogError("@Client.DisconnectionAck -> Trying to remove an Id that didn't exist");
-                return;
-            }
-            NetUsers.Remove(conId);
-        }
-
-        // ----------- GUI DEBUG STUFF ----------
-
+    #region GUI
+    
         private string _msgToSend;
         private Queue<string> _chatMessage = new Queue<string>();
-        private void AddMessageToQueue(string msg)
+        public void AddMessageToQueue(string msg)
         {
             _chatMessage.Enqueue(msg);
             if(_chatMessage.Count > 16)
@@ -249,7 +205,7 @@ namespace LLNet
                         ByteStream stream = new ByteStream();
                         stream.Encode
                         (
-                            (byte)NetMessageType.CHAT_TEAM_MESSAGE,
+                            (byte)NetMessageType.CHAT_MULTICAST,
                             _msgToSend
                         );
                         SendNetMessage(ReliableChannel, stream.ToArray());
@@ -297,5 +253,6 @@ namespace LLNet
             }
             GUILayout.EndHorizontal();
         }
+    #endregion
     }
 }

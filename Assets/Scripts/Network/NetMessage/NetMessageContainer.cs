@@ -1,7 +1,6 @@
 ﻿/*
     Copyright (C) Team Tripple Double, Vitor Brito 2020
 */
-using System;
 using System.Collections.Generic;
 using UnityEngine;
 
@@ -12,26 +11,27 @@ namespace LLNet
     {
         [SerializeField] private ANetMessage[] _NetMessages;
 
-        public Dictionary<NetMessageType, ANetMessage> NetMessageMap { get; private set; }
+        public Dictionary<NetMessageType, ANetMessage> NetMessagesMap { get; private set; }
 
-        private void OnValidate()
+        // OnValidate doesn't work on build
+        private void OnEnable()
         {
             MapMessage();
         }
 
         public void MapMessage()
         {
-            NetMessageMap = new Dictionary<NetMessageType, ANetMessage>(_NetMessages.Length);
+            NetMessagesMap = new Dictionary<NetMessageType, ANetMessage>(_NetMessages.Length);
             foreach(var item in _NetMessages)
             {
-                if(item == null ||  NetMessageMap.ContainsKey(item.MessageType))
+                if(item == null ||  NetMessagesMap.ContainsKey(item.MessageType))
                 {
                     Debug.LogWarning($"Cannot Add Duplicate Message [{item}], item");
                 }
                 else
                 {
-                    NetMessageMap[item.MessageType] = item;
-                    Debug.Log($"Mapping Done -> Added []");
+                    NetMessagesMap[item.MessageType] = item;
+                    Debug.Log($"Mapping Done -> Added [{NetMessagesMap.Count}] messages!");
                 }
             }
         }

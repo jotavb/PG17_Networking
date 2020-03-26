@@ -1017,8 +1017,10 @@ MonoBehaviour:
   _serverPort: 27000
   _bufferSize: 1024
   _threadPoolSize: 3
+  _netMessages: {fileID: 11400000, guid: 0c34d58ac1e1785448121487075389d0, type: 2}
   _userName: JBrito
   _teamNumber: 1
+  MyConnectionId: -1
 --- !u!4 &1623888357
 Transform:
   m_ObjectHideFlags: 0
@@ -1065,6 +1067,7 @@ MonoBehaviour:
   _serverPort: 27000
   _bufferSize: 1024
   _threadPoolSize: 3
+  _netMessages: {fileID: 11400000, guid: c831bf4c622b8804b8b844b9fa200771, type: 2}
 --- !u!4 &2009580282
 Transform:
   m_ObjectHideFlags: 0
