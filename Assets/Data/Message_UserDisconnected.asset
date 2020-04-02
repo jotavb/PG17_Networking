@@ -12,4 +12,4 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 78bd8ba55ccdbe943af795b53fac3e9c, type: 3}
   m_Name: Message_UserDisconnected
   m_EditorClassIdentifier: 
-  _messageType: 5
+  _messageType: 7

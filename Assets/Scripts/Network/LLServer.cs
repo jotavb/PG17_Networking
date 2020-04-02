@@ -22,15 +22,18 @@ namespace LLNet
         [HideInInspector] public byte ReliableChannel { get; private set; }
         [HideInInspector] public byte UnreliableChannel { get; private set; }
         [HideInInspector] public Dictionary<int, NetUser> NetUsers { get; private set; }
+        [HideInInspector] public Dictionary<int, NetPlayer> PlayerInstances { get; private set; }
 
         private void Start()
         {
+            _netMessages.MapMessage();
             StartServer();
         }
 
         private void StartServer()
         {
              NetUsers = new Dictionary<int, NetUser>();
+             PlayerInstances = new Dictionary<int, NetPlayer>();
 
             GlobalConfig globalconfig = new GlobalConfig()
             {
@@ -122,13 +125,19 @@ namespace LLNet
                 Debug.LogError($"@OnDisconnected -> Try to remove userId[{connectionId}] but it doesn't exist");
                 return;
             }
+            // Remove user and user's instance
             NetUsers.Remove(connectionId);
+            NetPlayer pInstance = PlayerInstances[connectionId];
+            PlayerInstances.Remove(connectionId);
+            Destroy(pInstance.gameObject);
+            // Notify all users about thje disconnection
             ByteStream stream = new ByteStream();
             stream.Encode
             (
                 (byte)NetMessageType.USER_DISCONNECT,
                 connectionId
             );
+
             BroadcastNetMessage(ReliableChannel, stream.ToArray(), connectionId);
             Debug.Log($"receiver.Disconnect -> Socket[{socketId}], userId[{connectionId}]");
         }
@@ -148,10 +157,13 @@ namespace LLNet
                 NetUsers[connectionId] = newUser;
                 Debug.Log($"@OnConnectedToServer -> UserId[{connectionId}]");
             }
+            // Send CONNECTION_ACK with the connectionId to the client
             ByteStream bytestream = new ByteStream();
             bytestream.Append((byte)NetMessageType.CONNECTION_ACK);
             bytestream.Append(connectionId);
             SendNetMessage(connectionId, ReliableChannel, bytestream.ToArray());
+            // Spawn a player instance that represents the new user
+            PlayerInstances[connectionId] = NetSpawner.SpawnPlayer(Vector3.zero, Quaternion.identity);
         }
 
         private void OnDataReceived(int connectionId, int channel, byte[] data, int dataSize)

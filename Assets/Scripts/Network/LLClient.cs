@@ -18,6 +18,7 @@ namespace LLNet
         [SerializeField] private int _bufferSize = 1024;
         [SerializeField] private byte _threadPoolSize = 3;
         [SerializeField] private NetMessageContainer _netMessages;
+
         [Header("User Data")]
         [SerializeField] private string _userName = "JBrito";
         public string UserName => _userName;
@@ -30,17 +31,21 @@ namespace LLNet
         [HideInInspector] public int MyConnectionId = -1;
         [HideInInspector] public byte ReliableChannel { get; private set; }
         [HideInInspector] public byte UnreliableChannel { get; private set; }
-        public Dictionary<int, NetUser> NetUsers { get; private set; }
+
+        [HideInInspector] public Dictionary<int, NetUser> NetUsers { get; private set; }
+        [HideInInspector] public Dictionary<int, NetPlayer> PlayerInstances { get; private set; }
 
         private void Start()
         {
             _userName += UnityEngine.Random.Range(1, 1000);
+            _netMessages.MapMessage();
             ConnectToServer();
         }
 
         private void ConnectToServer()
         {
             NetUsers = new Dictionary<int, NetUser>();
+            PlayerInstances = new Dictionary<int, NetPlayer>();
 
             GlobalConfig globalconfig = new GlobalConfig()
             {

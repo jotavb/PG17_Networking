@@ -25,6 +25,7 @@ namespace LLNet
                     TeamNumber = teamNum
                 };
                 client.NetUsers[conId] = newUser;
+                client.PlayerInstances[conId] = NetSpawner.SpawnPlayer(Vector3.zero, Quaternion.identity);
             }
             catch(Exception e)
             {
@@ -53,18 +54,20 @@ namespace LLNet
                 // Broadcast this user info to other users
                 server.BroadcastNetMessage(server.ReliableChannel, msg.ToArray(), connectionId);
                 
-                // Send currently connect users data to this user
+                // Send currently connected users data to this user
+                // The message here include the position and rotation to proper spawn the player
                 foreach(var user in server.NetUsers)
                 {
                     if(user.Key == connectionId) continue;
                     msg = new ByteStream();
                     msg.Encode
                     (
-                        (byte)NetMessageType.USER_INFO,
+                        (byte)NetMessageType.USER_INFO_SPAWNPOSITION,
                         user.Key,
                         user.Value.UserName,
-                        user.Value.TeamNumber
-
+                        user.Value.TeamNumber,
+                        server.PlayerInstances[user.Key].transform.position,
+                        server.PlayerInstances[user.Key].transform.rotation
                     );
                     server.SendNetMessage(connectionId, server.ReliableChannel, msg.ToArray());
                 }

@@ -32,7 +32,13 @@ namespace LLNet
                     meUser.UserName,
                     meUser.TeamNumber
                 );
+                // Send USER_INFO message
                 client.SendNetMessage(client.ReliableChannel, data.ToArray());
+                // Spawn own player instance and flag it
+                client.PlayerInstances[meUser.ConnectionID] = NetSpawner.SpawnPlayer(Vector3.zero, Quaternion.identity);
+                client.PlayerInstances[meUser.ConnectionID].IsMine = true;
+                // Inject the client
+                client.PlayerInstances[meUser.ConnectionID].SetClient(client);
             }
             catch(Exception e)
             {

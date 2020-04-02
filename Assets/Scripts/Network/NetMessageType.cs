@@ -7,9 +7,11 @@ namespace LLNet
     {
         CONNECTION_ACK,
         USER_INFO,
+        USER_INFO_SPAWNPOSITION,
         CHAT_WHISPER,
         CHAT_BROADCAST,
         CHAT_MULTICAST,
+        GAMEPLAY_SETDESTINATION,
         USER_DISCONNECT
     }
 }

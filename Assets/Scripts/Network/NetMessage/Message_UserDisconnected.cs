@@ -21,6 +21,9 @@ namespace LLNet
                     return;
                 }
                 client.NetUsers.Remove(conId);
+                NetPlayer pInstance = client.PlayerInstances[conId];
+                client.PlayerInstances.Remove(conId);
+                Destroy(pInstance.gameObject);
             }
             catch(Exception e)
             {

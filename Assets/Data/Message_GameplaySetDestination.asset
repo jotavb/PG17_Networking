@@ -9,7 +9,7 @@ MonoBehaviour:
   m_GameObject: {fileID: 0}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: c66b252218e969c4d84c95e182478553, type: 3}
-  m_Name: Message_ChatMulticast
+  m_Script: {fileID: 11500000, guid: c09db6103cb9358408d41535c4fb93d4, type: 3}
+  m_Name: Message_GameplaySetDestination
   m_EditorClassIdentifier: 
-  _messageType: 5
+  _messageType: 6
