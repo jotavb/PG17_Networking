@@ -1,6 +1,7 @@
 fileFormatVersion: 2
-guid: f54d1bd14bd3ca042bd867b519fee8cc
-folderAsset: yes
+guid: c7a3bab19d8f95a46941d84acee511d2
+labels:
+- ByterizerLite
 DefaultImporter:
   externalObjects: {}
   userData: 
